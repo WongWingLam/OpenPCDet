@@ -154,7 +154,7 @@ class CALayer(nn.Module):
         return y
 
 
-# Point-wise attention for each voxel
+# Point-wise and Channel-wise attention for each voxel
 class PACALayer(nn.Module):
     def __init__(self, dim_ca, dim_pa, reduction_r):
         super(PACALayer, self).__init__()

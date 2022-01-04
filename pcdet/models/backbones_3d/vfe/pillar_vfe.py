@@ -236,8 +236,6 @@ class VoxelFeature_TA(nn.Module):
 
 class PillarVFE_TANet(PillarVFE):
     def __init__(self, model_cfg, num_point_features, voxel_size, point_cloud_range, **kwargs):
-        import pdb
-        pdb.set_trace()
         super().__init__(model_cfg, num_point_features, voxel_size, point_cloud_range, **kwargs)
 
         num_filters = [64] + list(self.num_filters)

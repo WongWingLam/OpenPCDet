@@ -133,7 +133,7 @@ class PALayer(nn.Module):
         )
 
     def forward(self, x):
-        # fill in the code
+        # WRITE YOUR CODE BELOW!
         
         return out1
 
@@ -149,7 +149,7 @@ class CALayer(nn.Module):
         )
 
     def forward(self, x):
-        # fill in the code
+        # WRITE YOUR CODE BELOW!
 
         return y
 
@@ -163,7 +163,7 @@ class PACALayer(nn.Module):
         self.sig = nn.Sigmoid()
 
     def forward(self, x):
-        # fill in the code
+        # WRITE YOUR CODE BELOW!
         
         return out, paca_normal_weight
 
@@ -190,7 +190,7 @@ class VALayer(nn.Module):
         :param SACA_Feat: size (K,N,C)
         :return: voxel_attention_weight: size (K,1,1)
         '''
-        # fill in the code
+        # WRITE YOUR CODE BELOW!
 
         return voxel_attention_weight
 

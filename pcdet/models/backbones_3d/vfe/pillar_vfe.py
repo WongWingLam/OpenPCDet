@@ -196,7 +196,7 @@ class VALayer(nn.Module):
 
 
 class VoxelFeature_TA(nn.Module):
-    def __init__(self, dim_ca=9, dim_pa=32,reduction_r=8, boost_c_dim=64, use_paca_weight=False):
+    def __init__(self, dim_ca=10, dim_pa=32,reduction_r=8, boost_c_dim=64, use_paca_weight=False):
         super(VoxelFeature_TA, self).__init__()
         self.PACALayer1 = PACALayer(dim_ca=dim_ca, dim_pa=dim_pa, reduction_r=reduction_r)
         self.PACALayer2 = PACALayer(dim_ca=boost_c_dim, dim_pa=dim_pa, reduction_r=reduction_r)

@@ -178,7 +178,7 @@ class VALayer(nn.Module):
         )
 
         self.fc2 = nn.Sequential(
-            nn.Linear(p_num, 1),  ########################
+            nn.Linear(p_num, 1),
             nn.ReLU(inplace=True)
         )
 

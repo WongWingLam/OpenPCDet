@@ -121,3 +121,168 @@ class PillarVFE(VFETemplate):
         features = features.squeeze()
         batch_dict['pillar_features'] = features
         return batch_dict
+    
+# Point-wise attention for each voxel
+class PALayer(nn.Module):
+    def __init__(self, dim_pa, reduction_pa):
+        super(PALayer, self).__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(dim_pa, dim_pa // reduction_pa),
+            nn.ReLU(inplace=True),
+            nn.Linear(dim_pa // reduction_pa, dim_pa)
+        )
+
+    def forward(self, x):
+        # fill in the code
+        
+        return out1
+
+
+# Channel-wise attention for each voxel
+class CALayer(nn.Module):
+    def __init__(self, dim_ca, reduction_ca):
+        super(CALayer, self).__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(dim_ca, dim_ca // reduction_ca),
+            nn.ReLU(inplace=True),
+            nn.Linear(dim_ca // reduction_ca, dim_ca)
+        )
+
+    def forward(self, x):
+        # fill in the code
+
+        return y
+
+
+# Point-wise attention for each voxel
+class PACALayer(nn.Module):
+    def __init__(self, dim_ca, dim_pa, reduction_r):
+        super(PACALayer, self).__init__()
+        self.pa = PALayer(dim_pa, dim_pa // reduction_r)
+        self.ca = CALayer(dim_ca, dim_ca // reduction_r)
+        self.sig = nn.Sigmoid()
+
+    def forward(self, x):
+        # fill in the code
+        
+        return out, paca_normal_weight
+
+
+# Voxel-wise attention for each voxel
+class VALayer(nn.Module):
+    def __init__(self, c_num, p_num):
+        super(VALayer, self).__init__()
+        self.fc1 = nn.Sequential(
+            nn.Linear(c_num + 3, 1),
+            nn.ReLU(inplace=True)
+        )
+
+        self.fc2 = nn.Sequential(
+            nn.Linear(p_num, 1),  ########################
+            nn.ReLU(inplace=True)
+        )
+
+        self.sigmod = nn.Sigmoid()
+
+    def forward(self, voxel_center, paca_feat):
+        '''
+        :param voxel_center: size (K,1,3)
+        :param SACA_Feat: size (K,N,C)
+        :return: voxel_attention_weight: size (K,1,1)
+        '''
+        # fill in the code
+
+        return voxel_attention_weight
+
+
+class VoxelFeature_TA(nn.Module):
+    def __init__(self, dim_ca=9, dim_pa=32,reduction_r=8, boost_c_dim=64, use_paca_weight=False):
+        super(VoxelFeature_TA, self).__init__()
+        self.PACALayer1 = PACALayer(dim_ca=dim_ca, dim_pa=dim_pa, reduction_r=reduction_r)
+        self.PACALayer2 = PACALayer(dim_ca=boost_c_dim, dim_pa=dim_pa, reduction_r=reduction_r)
+        self.voxel_attention1 = VALayer(c_num=dim_ca, p_num=dim_pa)
+        self.voxel_attention2 = VALayer(c_num=boost_c_dim, p_num=dim_pa)
+        self.use_paca_weight = use_paca_weight
+        self.FC1 = nn.Sequential(
+            nn.Linear(2 * dim_ca, boost_c_dim),
+            nn.ReLU(inplace=True),
+        )
+        self.FC2 = nn.Sequential(
+            nn.Linear(boost_c_dim, boost_c_dim),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, voxel_center, x):
+        paca1, paca_normal_weight1 = self.PACALayer1(x)
+        voxel_attention1 = self.voxel_attention1(voxel_center, paca1)
+        if self.use_paca_weight:
+            paca1_feat = voxel_attention1 * paca1 * paca_normal_weight1
+        else:
+            paca1_feat = voxel_attention1 * paca1
+        out1 = torch.cat([paca1_feat, x], dim=2)
+        out1 = self.FC1(out1)
+
+        paca2, paca_normal_weight2 = self.PACALayer2(out1)
+        voxel_attention2 = self.voxel_attention2(voxel_center, paca2)
+        if self.use_paca_weight:
+            paca2_feat = voxel_attention2 * paca2 * paca_normal_weight2
+        else:
+            paca2_feat = voxel_attention2 * paca2
+        out2 = out1 + paca2_feat
+        out = self.FC2(out2)
+
+        return out
+
+
+class PillarVFE_TANet(PillarVFE):
+    def __init__(self, model_cfg, num_point_features, voxel_size, point_cloud_range, **kwargs):
+        import pdb
+        pdb.set_trace()
+        super().__init__(model_cfg, num_point_features, voxel_size, point_cloud_range, **kwargs)
+
+        num_filters = [64] + list(self.num_filters)
+
+        pfn_layers = []
+        for i in range(len(num_filters) - 1):
+            in_filters = num_filters[i]
+            out_filters = num_filters[i + 1]
+            pfn_layers.append(
+                PFNLayer(in_filters, out_filters, self.use_norm, last_layer=(i >= len(num_filters) - 2))
+            )
+        self.pfn_layers = nn.ModuleList(pfn_layers)
+
+        self.VoxelFeature_TA = VoxelFeature_TA()
+
+    def forward(self, batch_dict, **kwargs):
+
+        voxel_features, voxel_num_points, coords = batch_dict['voxels'], batch_dict['voxel_num_points'], batch_dict['voxel_coords']
+        points_mean = voxel_features[:, :, :3].sum(dim=1, keepdim=True) / voxel_num_points.type_as(voxel_features).view(-1, 1, 1)
+        f_cluster = voxel_features[:, :, :3] - points_mean
+
+        f_center = torch.zeros_like(voxel_features[:, :, :3])
+        f_center[:, :, 0] = voxel_features[:, :, 0] - (coords[:, 3].to(voxel_features.dtype).unsqueeze(1) * self.voxel_x + self.x_offset)
+        f_center[:, :, 1] = voxel_features[:, :, 1] - (coords[:, 2].to(voxel_features.dtype).unsqueeze(1) * self.voxel_y + self.y_offset)
+        f_center[:, :, 2] = voxel_features[:, :, 2] - (coords[:, 1].to(voxel_features.dtype).unsqueeze(1) * self.voxel_z + self.z_offset)
+
+        if self.use_absolute_xyz:
+            features = [voxel_features, f_cluster, f_center]
+        else:
+            features = [voxel_features[..., 3:], f_cluster, f_center]
+
+        if self.with_distance:
+            points_dist = torch.norm(voxel_features[:, :, :3], 2, 2, keepdim=True)
+            features.append(points_dist)
+        features = torch.cat(features, dim=-1)
+
+        voxel_count = features.shape[1]
+        mask = self.get_paddings_indicator(voxel_num_points, voxel_count, axis=0)
+        mask = torch.unsqueeze(mask, -1).type_as(voxel_features)
+        features *= mask
+
+        features = self.VoxelFeature_TA(points_mean, features)
+
+        for pfn in self.pfn_layers:
+            features = pfn(features)
+        features = features.squeeze()
+        batch_dict['pillar_features'] = features
+        return batch_dict

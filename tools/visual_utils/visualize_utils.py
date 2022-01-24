@@ -155,7 +155,7 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_scores=None, ref_labe
     fig = draw_multi_grid_range(fig, bv_range=(0, -40, 80, 40))
     if gt_boxes is not None:
         corners3d = boxes_to_corners_3d(gt_boxes)
-        fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
+        fig = draw_corners3d(corners3d, fig=fig, color=(1, 0, 0), max_num=100)
 
     if ref_boxes is not None and len(ref_boxes) > 0:
         ref_corners3d = boxes_to_corners_3d(ref_boxes)

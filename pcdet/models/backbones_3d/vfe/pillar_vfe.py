@@ -135,6 +135,17 @@ class PALayer(nn.Module):
     def forward(self, x):
         # WRITE YOUR CODE BELOW!
         
+        # x is a voxel Vk 
+        # obtain the number of channels
+        N, C, _ = x.size()
+
+        # max pooling to aggregate point features across the channel-wise dimensions
+        # dim=2 is the dimension of point of the voxel tensor
+        E = torch.max(x, dim=2, keepdim=True)[0]
+
+        # pass the tensor the self defined layer
+        S = self.fc(E.view(N, C))
+        out1 = S.view(N, C, 1)
         return out1
 
 
@@ -151,6 +162,17 @@ class CALayer(nn.Module):
     def forward(self, x):
         # WRITE YOUR CODE BELOW!
 
+        # x is a voxel Vk 
+        # obtain the number of points
+        N, _, P = x.size()
+
+        # max pooling to aggregate channel features across the point-wise dimensions
+        # dim=1 is the dimension of channel of the voxel tensor
+        U = torch.max(x, dim=1, keepdim=True)[0]
+
+        # pass the tensor the self defined layer
+        T = self.fc(U.view(N, P))
+        y = T.view(N, 1, P)
         return y
 
 
@@ -164,6 +186,19 @@ class PACALayer(nn.Module):
 
     def forward(self, x):
         # WRITE YOUR CODE BELOW!
+        
+        # first, pass the voxel to the point-wise layer and channel-wise layer separately as shown in the paper
+        pa, ca = self.pa(x), self.ca(x)
+
+        # then, combine the outputs to a single matrix
+        M = torch.mul(pa, ca)
+
+        # normalize it with sigmoid function
+        paca_normal_weight = self.sig(M)
+
+        # finally, obtain the feature representation Fk1
+        F_1 = torch.mul(x, paca_normal_weight)
+        out = F_1
         
         return out, paca_normal_weight
 
@@ -191,6 +226,20 @@ class VALayer(nn.Module):
         :return: voxel_attention_weight: size (K,1,1)
         '''
         # WRITE YOUR CODE BELOW!
+        
+        # repeat the tensor first to fit the shape of the paca_feat to be concatenated 
+        repeated = voxel_center.repeat(1, paca_feat.shape[1], 1)
+
+        # concatenate with the paca_feat
+        concat = torch.cat([paca_feat, repeated], dim=1)
+        concat = self.fc1(concat)
+
+        # permute the tensor such that it can pass through fc2
+        # contiguous() is to make sure no memory error
+        concat = concat.permute(0, 2, 1).contiguous()
+        Q = self.fc2(concat)
+
+        voxel_attention_weight = Q
 
         return voxel_attention_weight
 

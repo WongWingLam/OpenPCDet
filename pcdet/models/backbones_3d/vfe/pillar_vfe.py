@@ -231,7 +231,7 @@ class VALayer(nn.Module):
         repeated = voxel_center.repeat(1, paca_feat.shape[1], 1)
 
         # concatenate with the paca_feat
-        concat = torch.cat([paca_feat, repeated], dim=1)
+        concat = torch.cat([paca_feat, repeated], dim=-1)
         concat = self.fc1(concat)
 
         # permute the tensor such that it can pass through fc2
